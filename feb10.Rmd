@@ -9,22 +9,143 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Exercise 0
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+suppressMessages(library(tidyverse))
+suppressMessages(library(latex2exp))
+bass = read_csv("https://sta360-sp25.github.io/data/bass.csv")
+glimpse(bass)
 ```
 
-## Including Plots
+### (a)
 
-You can also embed plots, for example:
+$$
+\begin{aligned}
+&\theta \mid y_1, \ldots y_n \sim N\left(\mu_n, \tau_n^2\right)\\
+&\begin{aligned}
+\mu_n & =\frac{\kappa_0 \mu_0+\sum y_i x_i}{\kappa_0+\sum x_i^2} \\
+\tau_n^2 & =\frac{1}{\kappa_0+\sum x_i^2}
+\end{aligned}
+\end{aligned}
+$$
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+### (b)
+
+```{r}
+x = bass$weight
+y = bass$mercury
+
+# prior parameters
+k0 = 1
+mu0 = 0
+
+sumYX = sum(y * x)
+d = (k0 + sum(x^2))
+mun = ((k0 * mu0) + sumYX) / d
+tn = sqrt(1 / d)
+
+theta.postsample = rnorm(10000, mun, tn)
+hist(theta.postsample)
+
+mean(theta.postsample)
+quantile(theta.postsample, c(0.025, 0.975))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### (c)
+
+```{r}
+# use posterior samples of theta and x = 4 to simulate ytilde
+
+ytilde = rnorm(10000, theta.postsample * 4, 1)
+hist(ytilde)
+
+mean(ytilde)
+```
+
+### (d)
+
+```{r}
+lm(mercury ~ 0 + weight, data = bass)
+
+lm(mercury ~ weight, data = bass)
+```
+
+## Exercise 1
+
+$$
+\begin{aligned}
+\hat{\sigma}^2&=\frac{1}{n} \sum_{i=1}^n\left(Y_i-\bar{Y}\right)^2=\frac{1}{n} \sum_{i=1}^n\left(Y_i-\mu+\mu-\bar{Y}\right)^2\\
+&=\frac{1}{n}(\sum_{i=1}^n \mathbb{E}\left[\left(Y_i-\mu\right)^2\right]-2 \sum_{i=1}^n \mathbb{E}\left[\left(Y_i-\mu\right)(\bar{Y}-\mu)\right]+\sum_{i=1}^n \mathbb{E}\left[(\bar{Y}-\mu)^2\right])\\
+&=\frac{1}{n}(\sum_{i=1}^n Var[Y_i]-2 \sum_{i=1}^n Cov[Y_i,\bar Y]+\sum_{i=1}^n Var[\bar Y])\\
+&=\frac{1}{n}(n\sigma^2-2\sigma^2+\sigma^2)=\frac{n-1}{n}\sigma^2
+\end{aligned}
+$$
+
+## Exercise 2
+
+### (a)
+
+$$
+\begin{aligned}
+L(\theta)&= \theta^{\sum Y_i}(1-\theta)^{n-\sum Y_i}\\
+l'(\theta)&=\frac1\theta \sum Y_i- \frac1{1-\theta}(n-\sum Y_i)\\
+\hat\theta_{MLE}&=\bar Y
+\end{aligned}
+$$
+
+
+### (b)
+
+$$
+\begin{aligned}
+p(\theta|Y_i)&=\theta^{\sum Y_i}(1-\theta)^{n-\sum Y_i}\theta^{a-1}(1-\theta)^{b-1}\\
+&\sim beta(\theta|a+\sum Y_i,b+n-\sum Y_i)\\
+\hat\theta_{B}&=\frac{a+\sum Y_i}{n+a+b}
+\end{aligned}
+$$
+
+### (c)
+
+$$
+\begin{aligned}
+MSE[\hat\theta_{MLE}|\theta]&=Var[\bar Y|\theta]+bias^2[\bar Y|\theta]\\
+&=\frac1n\theta(1-\theta)+0=\frac1n\theta(1-\theta)\\
+MSE[\hat\theta_{B}|\theta]& =\frac{n}{n+a+b} \bar{Y}+\frac{a+b}{n+a+b} \frac{a}{a+b}=w \bar{Y}+(1-w) \frac{a}{a+b} \\
+& =w^2 \operatorname{Var}(\bar{Y} \mid \theta)+(1-w)^2\left(\frac{a}{a+b}-\theta\right)^2 \\
+& =w^2 \frac{\theta(1-\theta)}{n}+(1-w)^2\left(\frac{a}{a+b}-\theta\right)^2\\
+MSE[\hat\theta_{B}|\theta]&\leq MSE[\hat\theta_{MLE}|\theta]\\
+\Rightarrow\left(\frac{a}{a+b}-\theta\right)^2 & \leq \frac{\theta(1-\theta)}{n} \frac{1+w}{1-w} \\
+& \leq \frac{(2 n+a+b)}{n(a+b)}\theta(1-\theta)
+\end{aligned}
+$$
+
+We can see that the better the prior is (which means $\frac{a}{a+b}$ close to $\theta$), the smaller $MSE[\hat\theta_{B}|\theta]$ is.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
