@@ -1,0 +1,48 @@
+---
+author: "Haocheng Qin"
+date: "2025-02-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise
+
+Firstly the log-likelihood here
+
+$$
+\ell\left(\theta, \sigma^2\right)=-\frac{n}{2} \log \left(2 \pi \sigma^2\right)-\sum_{i=1}^n \frac{\left(X_i-\theta\right)^2}{2 \sigma^2}
+$$
+
+The Fisher Information Matrix $I(\Psi)$ has elements (like a Hessian matrix):
+
+$$
+I(\Psi)=\left[\begin{array}{cc}
+-\mathbb{E}\left[\ell_{\theta \theta}\right] & -\mathbb{E}\left[\ell_{\theta \sigma^2}\right] \\
+-\mathbb{E}\left[\ell_{\sigma^2 \theta}\right] & -\mathbb{E}\left[\ell_{\sigma^2 \sigma^2}\right]
+\end{array}\right]
+$$
+
+where:
+
+$$
+\begin{aligned}
+\frac{\partial^2 \ell}{\partial \theta^2}&=-\frac{n}{\sigma^2}&&\Rightarrow-\mathbb{E}\left[\ell_{\theta \theta}\right] =\frac{n}{\sigma^2}\\
+\frac{\partial^2 \ell}{\partial \theta \partial \sigma^2}&=-\sum_{i=1}^n \frac{X_i-\theta}{\sigma^4}&&\Rightarrow-\mathbb{E}\left[\ell_{\theta \sigma^2}\right] =-\mathbb{E}\left[\ell_{\sigma^2 \theta}\right] =0\\
+\frac{\partial^2 \ell}{\partial\left(\sigma^2\right)^2}&=\frac{n}{2 \sigma^4}-\sum_{i=1}^n \frac{\left(X_i-\theta\right)^2}{\sigma^6}&&\Rightarrow-\mathbb{E}\left[\ell_{\sigma^2 \sigma^2}\right]=\frac{n}{2 \sigma^4}
+\end{aligned}
+$$
+
+Finally the Jeffreys prior is
+
+$$
+\begin{aligned}
+p_J\left(\theta, \sigma^2\right) & \propto \sqrt{|I(\Psi)|}  \\
+& \propto \sqrt{\left(\frac{n}{\sigma^2}\right)\left(\frac{n}{2 \sigma^4}\right)}  \\
+& \propto \sigma^{-3}=\left(\sigma^2\right)^{-3 / 2}
+\end{aligned}
+$$
+
+
