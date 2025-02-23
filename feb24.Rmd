@@ -1,0 +1,157 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1
+
+### Metropolis Algorithm
+
+```{r}
+# target distribution
+pi_target <- function(theta) {
+  return(theta / sum(1:6)) 
+}
+
+# Metropolis algorithm
+metropolis_sampler <- function(S=10000, seed=1) {
+  set.seed(1)
+  states <- numeric(S)
+  # Initialize state randomly
+  states[1] <- sample(1:6, 1)  
+  for (s in 2:S) {
+    current_state <- states[s-1]
+    # Uniform proposal J(j|i) = 1/6
+    proposed_state <- sample(1:6, 1)  
+    # acceptance probability
+    alpha <- min(1, pi_target(proposed_state) / pi_target(current_state))
+    # accept or reject proposal
+    if (runif(1) < alpha) {
+      states[s] <- proposed_state
+    } else {
+      states[s] <- current_state
+    }
+  }
+  return(states)
+}
+
+samples <- metropolis_sampler(S=10000,seed=1)
+```
+
+
+### Why Symmetric
+
+The proposal distribution is symmetric because the probability of moving from state i to state j is the same as moving from j to i. Mathematically $J(j \mid i)=J(i \mid j)=\frac{1}{6}$.
+
+We need it to be symmetric because, we want the Markov chain to converge to the target distribution $\pi(\theta)$, which requires satisfying the detailed balance condition:
+
+$$
+\pi(\theta) P(\theta'\mid\theta)=\pi(\theta')P(\theta\mid\theta') 
+$$
+
+
+In the Metropolis Algorithm, the transition probability is given by:
+
+$$
+P(\theta'\mid\theta)=J(\theta'\mid\theta) \cdot \min (1, \frac{\pi(\theta')}{\pi(\theta)})
+$$
+
+So if and only if $J(\theta'\mid\theta)=J(\theta\mid\theta')$, we have
+
+$$
+\pi(\theta) P(\theta'\mid\theta)=J(\theta'\mid\theta)\min({\pi(\theta),\pi(\theta')})=J(\theta'\mid\theta)\min({\pi(\theta),\pi(\theta')})=\pi(\theta')P(\theta\mid\theta')
+$$
+
+
+(For the same reason, if we let the reject rate now to be $\frac{\pi(\theta')J(\theta\mid\theta')}{\pi(\theta)J(\theta'\mid\theta)}$, we the don't need $J$ to be symmetric)
+
+
+### Histogram and Comparison
+
+```{r}
+suppressMessages(library(ggplot2))
+data <- data.frame(Face = factor(samples, levels=1:6))
+ggplot(data, aes(x=Face)) +
+  geom_bar(aes(y = ..prop.., group = 1), fill="blue", alpha=0.6) +
+  geom_point(data=data.frame(Face=factor(1:6), True_Prob=1:6 / sum(1:6)),
+             aes(x=Face, y=True_Prob), color="red", size=3) +
+  labs(title="Metropolis Sampling vs Target Distribution",
+       x="Die Face", y="Estimated Probability") +
+  theme_minimal()
+```
+
+This matches our intuition, the algorithm converges well.
+
+## Exercise 2
+
+### Metropolis-Hastings Algorithm
+
+```{r}
+# target distribution
+pi_target <- function(theta) {
+  return(theta / sum(1:6)) 
+}
+proposal_prob=c(0.05, 0.15, 0.2, 0.15, 0.15, 0.3)
+proposal_distribution <- function() {
+  return(sample(1:6, 1, prob=proposal_prob))
+}
+
+# Metropolis algorithm
+metropolis_hastings_sampler <- function(S=10000, seed=1) {
+  set.seed(1)
+  states <- numeric(S)
+  # Initialize state randomly
+  states[1] <- sample(1:6, 1)  
+  for (s in 2:S) {
+    current_state <- states[s-1]
+    proposed_state <- proposal_distribution()
+    # Compute proposal probability ratio
+    r_ratio <- (pi_target(proposed_state) / pi_target(current_state)) * 
+               (proposal_prob[current_state] / proposal_prob[proposed_state])
+    # Compute acceptance probability
+    alpha <- min(1, r_ratio)
+    # accept or reject proposal
+    if (runif(1) < alpha) {
+      states[s] <- proposed_state
+    } else {
+      states[s] <- current_state
+    }
+  }
+  return(states)
+}
+
+samples_hastings <- metropolis_hastings_sampler(S=10000,seed=1)
+
+data <- data.frame(Face = factor(samples_hastings, levels=1:6))
+ggplot(data, aes(x=Face)) +
+  geom_bar(aes(y = ..prop.., group = 1), fill="blue", alpha=0.6) +
+  geom_point(data=data.frame(Face=factor(1:6), True_Prob=1:6 / sum(1:6)),
+             aes(x=Face, y=True_Prob), color="red", size=3) +
+  labs(title="Metropolis_Hastings Sampling vs Target Distribution",
+       x="Die Face", y="Estimated Probability") +
+  theme_minimal()
+```
+
+### ESS comparison
+
+```{r}
+library(coda)
+ess_symmetric <- effectiveSize(samples)
+ess_non_symmetric <- effectiveSize(samples_hastings)
+print(paste("ESS for symmetric proposal:", ess_symmetric))
+print(paste("ESS for non-symmetric proposal:", ess_non_symmetric))
+```
+
+The non-symmetric proposal distribution (Metropolis-Hastings Algorithm) is preferable because it results in a higher Effective Sample Size (ESS), meaning the Markov chain produces more independent samples within the same number of iterations.
+
+This is because the non-symmetric proposal here assigns higher probabilities to some states that are more likely under $\pi(\theta)$, like state 6; the chain has a higher chance of accepting proposals, making transitions smoother and reducing dependency between samples (the basic idea here is, if the proposal is rejected, then $\theta^{S+1}=\theta^S$ are dependent, reducing the ESS; if it is accepted, $\theta^{S+1}$ and $\theta^S$ will be independent).
+
+
+
+
+
+
+
+
+
+
+
