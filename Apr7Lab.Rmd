@@ -1,0 +1,110 @@
+---
+title: "Lab_Apr7"
+author: "Haocheng Qin"
+date: "2025-04-07"
+output: html_document
+---
+
+```{r,warning=F}
+library(tidyverse)
+library(truncnorm)  # for truncated normal proposals
+
+# Load data
+y <- read_csv("https://sta602-sp25.github.io/data/E_coli.csv")
+
+populationFunction <- function(K, r, t) {
+  P0 <- 1
+  A <- (K - P0) / P0
+  round(K / (1 + A * exp(-r * t)))
+}
+
+# Log posterior
+logPosterior <- function(K, r, sigma2) {
+  # Enforce prior bounds (hard constraints)
+  if (K < 1e8 || r < log(2)/25 || r > log(2)/15 || sigma2 <= 0) return(-Inf)
+  
+  mu <- populationFunction(K, r, y$time)
+  log_lik <- sum(dnorm(y$P, mean = mu, sd = sqrt(sigma2 * mu), log = TRUE))
+  # Prior: r ~ Uniform(log(2)/25, log(2)/15) [handled by bounds]
+  #        K ~ Improper prior ∝ 1 if K > 1e8 [handled by bounds]
+  #        sigma2 ~ Inverse-Gamma(1, 1) → use transformation: 1/sigma2 ~ Gamma(1, 1)
+  log_prior_sigma <- dgamma(1/sigma2, shape = 1, rate = 1, log = TRUE)
+  return(log_lik + log_prior_sigma)
+}
+
+# Set up MCMC
+set.seed(602)
+S <- 10000  
+r_trace <- numeric(S)
+K_trace <- numeric(S)
+sigma2_trace <- numeric(S)
+
+# Initial values
+r_s <- log(2)/20
+K_s <- 1e9
+sigma2_s <- 1
+
+# Proposal standard deviations
+delta_r <- 0.005
+delta_K <- 1e5
+delta_sigma <- 0.1
+
+r_lower <- log(2)/25
+r_upper <- log(2)/15
+K_lower <- 1e8
+
+# Start MCMC
+for (s in 1:S) {
+  ## ----- Propose new r (truncated normal) -----
+  r_prop <- rtruncnorm(1, a = r_lower, b = r_upper, mean = r_s, sd = delta_r)
+  
+  log_post_ratio <- logPosterior(K_s, r_prop, sigma2_s) - logPosterior(K_s, r_s, sigma2_s)
+  log_proposal_ratio <- log(dtruncnorm(r_s, a = r_lower, b = r_upper, mean = r_prop, sd = delta_r)) -
+                        log(dtruncnorm(r_prop, a = r_lower, b = r_upper, mean = r_s, sd = delta_r))
+  
+  if (log(runif(1)) < log_post_ratio + log_proposal_ratio) {
+    r_s <- r_prop
+  }
+
+  ## ----- Propose new K (truncated normal) -----
+  K_prop <- rtruncnorm(1, a = K_lower, b = Inf, mean = K_s, sd = delta_K)
+  
+  log_post_ratio <- logPosterior(K_prop, r_s, sigma2_s) - logPosterior(K_s, r_s, sigma2_s)
+  log_proposal_ratio <- log(dtruncnorm(K_s, a = K_lower, b = Inf, mean = K_prop, sd = delta_K)) -
+                        log(dtruncnorm(K_prop, a = K_lower, b = Inf, mean = K_s, sd = delta_K))
+  
+  if (log(runif(1)) < log_post_ratio + log_proposal_ratio) {
+    K_s <- K_prop
+  }
+
+  ## ----- Propose new sigma^2 (positive normal) -----
+  sigma2_prop <- rtruncnorm(1, a = 0, b = Inf, mean = sigma2_s, sd = delta_sigma)
+  
+  log_post_ratio <- logPosterior(K_s, r_s, sigma2_prop) - logPosterior(K_s, r_s, sigma2_s)
+  log_proposal_ratio <- log(dtruncnorm(sigma2_s, a = 0, b = Inf, mean = sigma2_prop, sd = delta_sigma)) -
+                        log(dtruncnorm(sigma2_prop, a = 0, b = Inf, mean = sigma2_s, sd = delta_sigma))
+  
+  if (log(runif(1)) < log_post_ratio + log_proposal_ratio) {
+    sigma2_s <- sigma2_prop
+  }
+
+  # Save draws
+  r_trace[s] <- r_s
+  K_trace[s] <- K_s
+  sigma2_trace[s] <- sigma2_s
+}
+
+# Trace plots
+plot(r_trace, type = "l", main = "Trace plot: r")
+plot(K_trace, type = "l", main = "Trace plot: K")
+plot(sigma2_trace, type = "l", main = "Trace plot: sigma^2")
+```
+
+
+
+
+
+
+
+
+
